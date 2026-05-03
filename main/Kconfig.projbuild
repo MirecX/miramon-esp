@@ -1,0 +1,28 @@
+menu "MyraMon Configuration"
+
+    config MYRAMON_AP_SSID_PREFIX
+        string "AP SSID prefix"
+        default "MyraMon_"
+        help
+            Prefix for the access point SSID. The last 4 hex chars
+            of the MAC address will be appended.
+
+    config MYRAMON_AP_IP_ADDR
+        string "AP IP address"
+        default "192.168.4.1"
+        help
+            IP address for the access point.
+
+    config MYRAMON_STA_TIMEOUT_SEC
+        int "STA connection timeout (seconds)"
+        default 30
+        help
+            Time to wait for STA connection before falling back to AP mode.
+
+    config MYRAMON_TEMP_POLL_INTERVAL_MS
+        int "Temperature polling interval (milliseconds)"
+        default 10000
+        help
+            Interval for AJAX temperature polling.
+
+endmenu

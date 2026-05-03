@@ -1,0 +1,53 @@
+# ESP-IDF Project .gitattributes
+
+# Set default behavior to automatic line ending conversion
+* text=auto
+
+# Source files should use LF
+*.c text eol=lf
+*.h text eol=lf
+*.cpp text eol=lf
+*.hpp text eol=lf
+
+# Build files should use LF
+CMakeLists.txt text eol=lf
+*.cmake text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.rst text eol=lf
+*.txt text eol=lf
+
+# Configuration files
+sdkconfig.defaults text eol=lf
+partitions.csv text eol=lf
+Kconfig* text eol=lf
+
+# Scripts
+*.sh text eol=lf
+*.py text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.bin binary
+*.elf binary
+*.a binary
+*.o binary
+*.lib binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
