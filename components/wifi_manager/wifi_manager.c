@@ -41,6 +41,9 @@ static wifi_state_t s_wifi_state = WIFI_STATE_INIT;
 static TimerHandle_t s_sta_timeout_timer = NULL;
 static const int STA_TIMEOUT_SEC = 30;
 
+// Flag to signal AP should be started
+static volatile bool s_start_ap_after_timeout = false;
+
 // Forward declarations
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data);
@@ -249,6 +252,22 @@ wifi_state_t wifi_manager_get_state(void)
 }
 
 /**
+ * @brief Check for timeout and start AP if needed
+ * Call this periodically from main loop
+ */
+void wifi_manager_check_timeout(void)
+{
+    if (s_start_ap_after_timeout && s_wifi_state == WIFI_STATE_STA_CONNECTING) {
+        s_start_ap_after_timeout = false;
+        ESP_LOGI(TAG, "Starting AP mode after timeout");
+        esp_err_t err = wifi_start_ap();
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to start AP: %s", esp_err_to_name(err));
+        }
+    }
+}
+
+/**
  * @brief Set WiFi state (internal use)
  * @param state New state
  */
@@ -272,17 +291,15 @@ void wifi_manager_set_state(wifi_state_t state)
 
 /**
  * @brief STA connection timeout callback
+ * Note: Only sets a flag, actual AP start happens in main loop
  */
 static void sta_timeout_callback(TimerHandle_t timer)
 {
     ESP_LOGW(TAG, "STA connection timeout after %d seconds", STA_TIMEOUT_SEC);
     
     if (s_wifi_state == WIFI_STATE_STA_CONNECTING) {
-        ESP_LOGI(TAG, "Starting AP mode due to timeout");
-        esp_err_t err = wifi_start_ap();
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to start AP: %s", esp_err_to_name(err));
-        }
+        ESP_LOGI(TAG, "Timeout - will start AP mode");
+        s_start_ap_after_timeout = true;
     }
 }
 

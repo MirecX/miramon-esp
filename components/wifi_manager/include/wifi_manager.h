@@ -62,6 +62,12 @@ esp_err_t wifi_creds_clear(void);
 wifi_state_t wifi_manager_get_state(void);
 
 /**
+ * @brief Check for STA timeout and start AP if needed
+ * Call periodically from main loop
+ */
+void wifi_manager_check_timeout(void);
+
+/**
  * @brief Start WiFi (STA or AP based on credentials)
  * @return ESP_OK on success
  */
