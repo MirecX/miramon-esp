@@ -45,6 +45,7 @@ static const int STA_TIMEOUT_SEC = 30;
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data);
 static void sta_timeout_callback(TimerHandle_t timer);
+static esp_err_t wifi_start_ap(void);
 
 /**
  * @brief Initialize NVS storage
@@ -277,9 +278,11 @@ static void sta_timeout_callback(TimerHandle_t timer)
     ESP_LOGW(TAG, "STA connection timeout after %d seconds", STA_TIMEOUT_SEC);
     
     if (s_wifi_state == WIFI_STATE_STA_CONNECTING) {
-        ESP_LOGI(TAG, "Transitioning to AP_ACTIVE due to timeout");
-        wifi_manager_set_state(WIFI_STATE_AP_ACTIVE);
-        // TODO: Start AP mode here
+        ESP_LOGI(TAG, "Starting AP mode due to timeout");
+        esp_err_t err = wifi_start_ap();
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to start AP: %s", esp_err_to_name(err));
+        }
     }
 }
 
@@ -526,7 +529,9 @@ static esp_err_t wifi_start_ap(void)
         return err;
     }
     
-    ESP_LOGI(TAG, "AP started: %s", ap_ssid);
+    ESP_LOGI(TAG, "AP started: %s (MAC: %02X%02X)", ap_ssid, mac[4], mac[5]);
+    ESP_LOGI(TAG, "AP config: channel=%d, authmode=%d, max_conn=%d", 
+             wifi_config.ap.channel, wifi_config.ap.authmode, wifi_config.ap.max_connection);
     wifi_manager_set_state(WIFI_STATE_AP_ACTIVE);
     
     // Start DNS server for captive portal
