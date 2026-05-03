@@ -45,10 +45,17 @@ static const int STA_TIMEOUT_SEC = 30;
 static int s_sta_retry_count = 0;
 #define MAX_STA_RETRIES 5
 
+// Semaphore to signal AP should start (safe IPC from timer to task)
+static SemaphoreHandle_t s_start_ap_sem = NULL;
+
+// Task handle for WiFi manager
+static TaskHandle_t s_wifi_manager_task = NULL;
+
 // Forward declarations
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data);
 static void sta_timeout_callback(TimerHandle_t timer);
+static void wifi_manager_task_func(void *pvParameters);
 static esp_err_t wifi_start_ap(void);
 
 /**
@@ -276,15 +283,34 @@ void wifi_manager_set_state(wifi_state_t state)
 
 /**
  * @brief STA connection timeout callback
- * Starts AP mode directly from timer context (safe - just posts to event queue)
+ * Just gives semaphore - actual AP start happens in wifi_manager_task
  */
 static void sta_timeout_callback(TimerHandle_t timer)
 {
     ESP_LOGW(TAG, "STA connection timeout after %d seconds", STA_TIMEOUT_SEC);
     
     if (s_wifi_state == WIFI_STATE_STA_CONNECTING) {
-        ESP_LOGI(TAG, "Starting AP mode after timeout");
-        wifi_start_ap();
+        ESP_LOGI(TAG, "Timeout - signaling AP start");
+        if (s_start_ap_sem != NULL) {
+            xSemaphoreGiveFromISR(s_start_ap_sem, NULL);
+        }
+    }
+}
+
+/**
+ * @brief WiFi manager background task
+ * Handles deferred operations that can't run in timer/ISR context
+ */
+static void wifi_manager_task_func(void *pvParameters)
+{
+    while (1) {
+        // Wait for AP start signal
+        if (xSemaphoreTake(s_start_ap_sem, portMAX_DELAY) == pdTRUE) {
+            if (s_wifi_state == WIFI_STATE_STA_CONNECTING) {
+                ESP_LOGI(TAG, "Starting AP mode (deferred from timer)");
+                wifi_start_ap();
+            }
+        }
     }
 }
 
@@ -438,7 +464,30 @@ static esp_err_t wifi_init(void)
         return err;
     }
     
+    // Register for IP events
+    err = esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                               &wifi_event_handler, NULL, NULL);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to register IP_EVENT handler: %s", esp_err_to_name(err));
+        return err;
+    }
+    
+    // Create semaphore for deferred AP start
+    s_start_ap_sem = xSemaphoreCreateBinary();
+    if (s_start_ap_sem == NULL) {
+        ESP_LOGE(TAG, "Failed to create AP start semaphore");
+        return ESP_ERR_NO_MEM;
+    }
+    
     ESP_LOGI(TAG, "WiFi initialized");
+    
+    // Create WiFi manager task for deferred operations
+    xTaskCreate(wifi_manager_task_func, "wifi_mgr_task", 2048, NULL, 5, &s_wifi_manager_task);
+    if (s_wifi_manager_task == NULL) {
+        ESP_LOGE(TAG, "Failed to create WiFi manager task");
+        return ESP_ERR_NO_MEM;
+    }
+    
     return ESP_OK;
 }
 
