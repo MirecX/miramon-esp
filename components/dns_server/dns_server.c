@@ -21,7 +21,7 @@ static const char *TAG = "dns_server";
 #define DNS_PORT            53
 #define DNS_TTL             60
 #define DNS_TASK_PRIORITY   1
-#define DNS_TASK_STACK_SIZE 512
+#define DNS_TASK_STACK_SIZE 2048
 #define DNS_MAX_PACKET_SIZE 256
 
 // DNS response IP: 192.168.4.1
