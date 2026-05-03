@@ -21,7 +21,7 @@ static const char *TAG = "dns_server";
 #define DNS_PORT            53
 #define DNS_TTL             60
 #define DNS_TASK_PRIORITY   1
-#define DNS_TASK_STACK_SIZE 2048
+#define DNS_TASK_STACK_SIZE 4096
 #define DNS_MAX_PACKET_SIZE 256
 
 // DNS response IP: 192.168.4.1
@@ -31,6 +31,12 @@ static const uint8_t DNS_RESPONSE_IP[4] = {192, 168, 4, 1};
 static TaskHandle_t s_dns_task_handle = NULL;
 static int s_dns_socket = -1;
 static bool s_running = false;
+
+// Static buffers to reduce stack usage
+static uint8_t s_dns_recv_buf[DNS_MAX_PACKET_SIZE];
+static uint8_t s_dns_send_buf[DNS_MAX_PACKET_SIZE];
+static struct sockaddr_in s_dns_client_addr;
+static socklen_t s_dns_client_addr_len;
 
 // DNS header structure (12 bytes)
 typedef struct {
@@ -130,12 +136,6 @@ static void dns_server_task(void *pvParameters)
         .sin_port = htons(DNS_PORT)
     };
     
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
-    
-    uint8_t recv_buf[DNS_MAX_PACKET_SIZE];
-    uint8_t send_buf[DNS_MAX_PACKET_SIZE];
-    
     ESP_LOGI(TAG, "DNS server starting on port %d", DNS_PORT);
     
     // Create UDP socket
@@ -170,21 +170,22 @@ static void dns_server_task(void *pvParameters)
         int ready = select(s_dns_socket + 1, &readfds, NULL, NULL, &timeout);
         
         if (ready > 0 && FD_ISSET(s_dns_socket, &readfds)) {
-            memset(recv_buf, 0, sizeof(recv_buf));
-            int recv_len = recvfrom(s_dns_socket, recv_buf, sizeof(recv_buf), 0,
-                                    (struct sockaddr *)&client_addr, &client_addr_len);
+            memset(s_dns_recv_buf, 0, sizeof(s_dns_recv_buf));
+            s_dns_client_addr_len = sizeof(s_dns_client_addr);
+            int recv_len = recvfrom(s_dns_socket, s_dns_recv_buf, sizeof(s_dns_recv_buf), 0,
+                                    (struct sockaddr *)&s_dns_client_addr, &s_dns_client_addr_len);
             
             if (recv_len > 0) {
                 ESP_LOGD(TAG, "DNS query received (%d bytes)", recv_len);
                 
                 // Build response
-                int resp_len = build_dns_response(recv_buf, recv_len, 
-                                                   send_buf, sizeof(send_buf));
+                int resp_len = build_dns_response(s_dns_recv_buf, recv_len, 
+                                                   s_dns_send_buf, sizeof(s_dns_send_buf));
                 
                 if (resp_len > 0) {
                     // Send response
-                    sendto(s_dns_socket, send_buf, resp_len, 0,
-                           (struct sockaddr *)&client_addr, client_addr_len);
+                    sendto(s_dns_socket, s_dns_send_buf, resp_len, 0,
+                           (struct sockaddr *)&s_dns_client_addr, s_dns_client_addr_len);
                     ESP_LOGD(TAG, "DNS response sent (%d bytes)", resp_len);
                 }
             }
