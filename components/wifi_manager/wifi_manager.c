@@ -41,9 +41,6 @@ static wifi_state_t s_wifi_state = WIFI_STATE_INIT;
 static TimerHandle_t s_sta_timeout_timer = NULL;
 static const int STA_TIMEOUT_SEC = 30;
 
-// Event loop handle
-static esp_event_loop_handle_t s_wifi_event_loop = NULL;
-
 // Forward declarations
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data);
@@ -392,22 +389,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 static esp_err_t wifi_init(void)
 {
     // Create default network interface
-    esp_netif_init();
+    ESP_ERROR_CHECK(esp_netif_init());
     
     // Create default event loop
-    esp_event_loop_args_t loop_args = {
-        .queue_size = 10,
-        .task_name = "wifi_event_task"
-    };
-    esp_err_t err = esp_event_loop_create(&loop_args, &s_wifi_event_loop);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create event loop: %s", esp_err_to_name(err));
-        return err;
-    }
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
     
-    // Register event handlers
-    err = esp_event_handler_instance_register_with(
-        s_wifi_event_loop,
+    // Register event handlers (using default loop)
+    esp_err_t err = esp_event_handler_instance_register(
         WIFI_EVENT,
         ESP_EVENT_ANY_ID,
         &wifi_event_handler,
@@ -419,8 +407,7 @@ static esp_err_t wifi_init(void)
         return err;
     }
     
-    err = esp_event_handler_instance_register_with(
-        s_wifi_event_loop,
+    err = esp_event_handler_instance_register(
         IP_EVENT,
         IP_EVENT_STA_GOT_IP,
         &wifi_event_handler,
