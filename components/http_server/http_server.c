@@ -431,31 +431,33 @@ static esp_err_t config_handler(httpd_req_t *req)
     char ssid[32] = {0};
     char password[64] = {0};
     
-    char *ssid_val = strchr(ssid_start + 7, ':');
-    if (ssid_val) {
-        ssid_val = strchr(ssid_val, '"');
-        if (ssid_val) {
-            ssid_val++;
-            char *ssid_end = strchr(ssid_val, '"');
+    // Find colon after "ssid", then find opening quote
+    char *ssid_colon = strchr(ssid_start, ':');
+    if (ssid_colon) {
+        char *ssid_quote = strchr(ssid_colon, '"');
+        if (ssid_quote) {
+            ssid_quote++;
+            char *ssid_end = strchr(ssid_quote, '"');
             if (ssid_end) {
-                size_t len = ssid_end - ssid_val;
+                size_t len = ssid_end - ssid_quote;
                 if (len < sizeof(ssid)) {
-                    strncpy(ssid, ssid_val, len);
+                    strncpy(ssid, ssid_quote, len);
                 }
             }
         }
     }
     
-    char *pass_val = strchr(pass_start + 10, ':');
-    if (pass_val) {
-        pass_val = strchr(pass_val, '"');
-        if (pass_val) {
-            pass_val++;
-            char *pass_end = strchr(pass_val, '"');
+    // Find colon after "password", then find opening quote
+    char *pass_colon = strchr(pass_start, ':');
+    if (pass_colon) {
+        char *pass_quote = strchr(pass_colon, '"');
+        if (pass_quote) {
+            pass_quote++;
+            char *pass_end = strchr(pass_quote, '"');
             if (pass_end) {
-                size_t len = pass_end - pass_val;
+                size_t len = pass_end - pass_quote;
                 if (len < sizeof(password)) {
-                    strncpy(password, pass_val, len);
+                    strncpy(password, pass_quote, len);
                 }
             }
         }
@@ -476,7 +478,7 @@ static esp_err_t config_handler(httpd_req_t *req)
         return ESP_OK;
     }
     
-    ESP_LOGI(TAG, "Credentials saved: SSID=%s", ssid);
+    ESP_LOGI(TAG, "Credentials saved: SSID=%s (password hidden)", ssid);
     
     // TODO: Transition to STA_CONNECTING state
     // For now, just return success
