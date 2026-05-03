@@ -386,9 +386,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                 // Transition to connected state
                 wifi_manager_set_state(WIFI_STATE_STA_CONNECTED);
                 
-                // Start HTTP server for status/temperature APIs
-                http_server_init();
-                http_server_start();
+                // Start HTTP server for status/temperature APIs (if not already running)
+                if (s_wifi_state != WIFI_STATE_AP_ACTIVE) {
+                    http_server_init();
+                    http_server_start();
+                }
                 
                 break;
             }

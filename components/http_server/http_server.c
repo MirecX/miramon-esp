@@ -637,6 +637,23 @@ static const httpd_uri_t uri_canonical = {
     .user_ctx = NULL
 };
 
+/**
+ * @brief Favicon handler - return empty 204
+ */
+static esp_err_t favicon_handler(httpd_req_t *req)
+{
+    httpd_resp_set_status(req, "204 No Content");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+static const httpd_uri_t uri_favicon = {
+    .uri      = "/favicon.ico",
+    .method   = HTTP_GET,
+    .handler  = favicon_handler,
+    .user_ctx = NULL
+};
+
 esp_err_t http_server_init(void)
 {
     ESP_LOGI(TAG, "HTTP server initialized");
@@ -678,6 +695,9 @@ esp_err_t http_server_start(void)
     httpd_register_uri_handler(s_server, &uri_connecttest);
     httpd_register_uri_handler(s_server, &uri_ncsi);
     httpd_register_uri_handler(s_server, &uri_canonical);
+    
+    // Favicon handler (prevent 404 errors)
+    httpd_register_uri_handler(s_server, &uri_favicon);
     
     ESP_LOGI(TAG, "HTTP server started");
     return ESP_OK;
