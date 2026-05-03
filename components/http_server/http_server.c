@@ -639,7 +639,7 @@ esp_err_t http_server_start(void)
     }
     
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_uri_handlers = 10;
+    config.max_uri_handlers = 20;  // Need space for all captive portal URLs
     config.max_open_sockets = HTTP_MAX_CONNECTIONS;
     config.server_port = HTTP_PORT;
     

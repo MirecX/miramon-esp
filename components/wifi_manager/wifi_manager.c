@@ -493,6 +493,9 @@ static esp_err_t wifi_start_ap(void)
     char ap_ssid[32];
     snprintf(ap_ssid, sizeof(ap_ssid), "MyraMon_%02X%02X", mac[4], mac[5]);
     
+    // Create AP network interface with DHCP server
+    esp_netif_create_default_wifi_ap();
+    
     // Configure AP
     wifi_config_t wifi_config = {
         .ap = {
