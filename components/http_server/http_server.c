@@ -332,8 +332,10 @@ static esp_err_t scan_handler(httpd_req_t *req)
     esp_err_t err = esp_wifi_scan_start(&scan_config, true);  // Blocking scan
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Scan start failed: %s", esp_err_to_name(err));
-        httpd_resp_set_status(req, "500 Internal Server Error");
-        httpd_resp_send(req, "{\"error\": \"scan failed\"}", 22);
+        // Return empty array on scan failure
+        const char *json = "{\"ssids\": []}";
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_send(req, json, strlen(json));
         return ESP_OK;
     }
     
@@ -341,8 +343,9 @@ static esp_err_t scan_handler(httpd_req_t *req)
     uint16_t ap_count = 0;
     err = esp_wifi_scan_get_ap_num(&ap_count);
     if (err != ESP_OK || ap_count == 0) {
+        const char *json = "{\"ssids\": []}";
         httpd_resp_set_type(req, "application/json");
-        httpd_resp_send(req, "{\"ssids\": []}", 13);
+        httpd_resp_send(req, json, strlen(json));
         return ESP_OK;
     }
     

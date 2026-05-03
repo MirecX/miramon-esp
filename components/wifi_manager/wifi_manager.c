@@ -507,9 +507,10 @@ static esp_err_t wifi_start_ap(void)
     };
     strncpy((char *)wifi_config.ap.ssid, ap_ssid, sizeof(wifi_config.ap.ssid) - 1);
     
-    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_AP);
+    // Use APSTA mode to allow scanning while in AP mode
+    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_APSTA);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set AP mode: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Failed to set APSTA mode: %s", esp_err_to_name(err));
         return err;
     }
     
