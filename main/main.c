@@ -25,4 +25,8 @@ void app_main(void)
     }
     
     ESP_LOGI(TAG, "MyraMon initialization complete");
+    
+    // WiFi runs independently via event handlers
+    // Task will be deleted when initialization is complete
+    vTaskDelete(NULL);
 }

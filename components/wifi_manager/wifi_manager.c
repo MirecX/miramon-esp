@@ -41,8 +41,9 @@ static wifi_state_t s_wifi_state = WIFI_STATE_INIT;
 static TimerHandle_t s_sta_timeout_timer = NULL;
 static const int STA_TIMEOUT_SEC = 30;
 
-// Flag to signal AP should be started
-static volatile bool s_start_ap_after_timeout = false;
+// STA retry counter
+static int s_sta_retry_count = 0;
+#define MAX_STA_RETRIES 5
 
 // Forward declarations
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
@@ -252,22 +253,6 @@ wifi_state_t wifi_manager_get_state(void)
 }
 
 /**
- * @brief Check for timeout and start AP if needed
- * Call this periodically from main loop
- */
-void wifi_manager_check_timeout(void)
-{
-    if (s_start_ap_after_timeout && s_wifi_state == WIFI_STATE_STA_CONNECTING) {
-        s_start_ap_after_timeout = false;
-        ESP_LOGI(TAG, "Starting AP mode after timeout");
-        esp_err_t err = wifi_start_ap();
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to start AP: %s", esp_err_to_name(err));
-        }
-    }
-}
-
-/**
  * @brief Set WiFi state (internal use)
  * @param state New state
  */
@@ -291,15 +276,15 @@ void wifi_manager_set_state(wifi_state_t state)
 
 /**
  * @brief STA connection timeout callback
- * Note: Only sets a flag, actual AP start happens in main loop
+ * Starts AP mode directly from timer context (safe - just posts to event queue)
  */
 static void sta_timeout_callback(TimerHandle_t timer)
 {
     ESP_LOGW(TAG, "STA connection timeout after %d seconds", STA_TIMEOUT_SEC);
     
     if (s_wifi_state == WIFI_STATE_STA_CONNECTING) {
-        ESP_LOGI(TAG, "Timeout - will start AP mode");
-        s_start_ap_after_timeout = true;
+        ESP_LOGI(TAG, "Starting AP mode after timeout");
+        wifi_start_ap();
     }
 }
 
@@ -361,10 +346,16 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                 ESP_LOGW(TAG, "Disconnected from SSID: %s, reason: %d", 
                          (char *)event->ssid, event->reason);
                 
-                if (s_wifi_state == WIFI_STATE_STA_CONNECTED) {
-                    ESP_LOGI(TAG, "Auto-reconnect enabled, attempting reconnection");
-                    esp_wifi_connect();
-                    // State remains STA_CONNECTED during reconnection attempts
+                if (s_wifi_state == WIFI_STATE_STA_CONNECTED || s_wifi_state == WIFI_STATE_STA_CONNECTING) {
+                    s_sta_retry_count++;
+                    if (s_sta_retry_count < MAX_STA_RETRIES) {
+                        ESP_LOGI(TAG, "Reconnecting (attempt %d/%d)", s_sta_retry_count, MAX_STA_RETRIES);
+                        esp_wifi_connect();
+                    } else {
+                        ESP_LOGW(TAG, "Max retries reached, switching to AP mode");
+                        s_sta_retry_count = 0;
+                        wifi_start_ap();
+                    }
                 }
                 break;
             }
